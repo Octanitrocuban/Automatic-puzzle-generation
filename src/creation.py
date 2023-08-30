@@ -200,7 +200,7 @@ def minimize_tiles(tiles, plot=False):
 
 	return minimum
 
-def scale_tiles(tiles, image):
+def scale_tiles(n, tiles, image):
 	"""
 	Function to scale the tiles to the size of the picture that will be
 	transformed in puzzle. Note that given the number of tiles asked and the
@@ -301,4 +301,48 @@ def plot_tiling(n, tiles=None, coins=None, attaches=None, midpoints=None,
 	plt.xlim(-1, n[1])
 	plt.ylim(-1, n[0])
 	plt.legend(loc=[1.01, 0.6])
+	plt.show()
+
+def show_puzzle(tiles, image, figsize=(18, 18), lw=1, color='red',
+				save_path=None):
+	"""
+	Function to show and save the representation of the puzzle.
+
+	Parameters
+	----------
+	tiles : list
+		List of the tiles of the puzzle. The default is None.
+	image : numpy.ndarray
+		Picture use for the puzzle creation.
+	figsize : tuple, optional
+		Size of the figure. The default is (18, 18).
+	lw : float, optional
+		Thickness of the lines representing the tiles of the puzzle. The
+		default is 1.
+	color : str or list, optional
+		Color of the lines representing the tiles of the puzzle. The default
+		is 'red'.
+	save_path : str, optional
+		Path for saving the figure. The default is None.
+
+	Returns
+	-------
+	None.
+
+	"""
+	# making it up to down due to the way of ploting by plt.imshow.
+	im_puzzle = np.copy(image)[::-1]
+	shape = image.shape
+
+	plt.figure(figsize=figsize)
+	plt.imshow(im_puzzle, origin='lower', zorder=1, interpolation='none')
+	for i, piece in enumerate(tiles):
+		plt.plot(piece[:, 0], piece[:, 1], color=color, zorder=2, lw=lw)
+
+	plt.xlim(-0.5, shape[1])
+	plt.ylim(-0.5, shape[0])
+	plt.axis('off')
+	if type(save_path) == str:
+		plt.savefig(save_path, bbox_inches='tight', transparent=True)
+
 	plt.show()
