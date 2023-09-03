@@ -42,10 +42,10 @@ def puzzle_net(n):
 	centers = np.meshgrid(range(n[0]), range(n[1]))
 	centers = np.array([np.ravel(centers[1]), np.ravel(centers[0])]).T
 	# kernels rotation
-	# k1 : |1 2|      k2 : | 1 |     k3 : |  2 3  |
-	#      |0 3|           |0 2|          |1     4|
-	#                      | 3 |          |0     5|
-	#                                     |  7 6  |
+	# k1 : |1 2|	  k2 : | 1 |	 k3 : |  2 3  |
+	#	   |0 3|		   |0 2|		  |1	 4|
+	#					   | 3 |		  |0	 5|
+	#									  |  7 6  |
 	k1 = np.array([[-.5, -.5], [-.5, .5], [.5, .5], [.5, -.5]])
 	k2 = np.array([[-.5, 0], [0, .5], [.5, 0], [0, -.5]])
 	k3 = np.array([[-.5, -.075], [-.5, .075], [-.075, .5], [.075, .5],
@@ -225,11 +225,129 @@ def scale_tiles(n, tiles, image):
 	scaled = []
 	for i, piece in enumerate(tiles):
 		scaling = np.copy(piece)
-		scaling[:, 0] = (scaling[:, 0]+0.5)/(n[1]) * shape[1]
-		scaling[:, 1] = (scaling[:, 1]+0.5)/(n[0]) * shape[0]
+		scaling[:, 0] = (scaling[:, 0]+0.5)/(n[1]) * (shape[1] -1)
+		scaling[:, 1] = (scaling[:, 1]+0.5)/(n[0]) * (shape[0] -1)
 		scaled.append(scaling)
 
 	return scaled
+
+def contour_tile(tile, grid_shape, factor):
+	"""
+	
+
+	Parameters
+	----------
+	tile : numpy.ndarray
+		DESCRIPTION.
+	grid_shape : tuple
+		DESCRIPTION.
+	factor : float
+		DESCRIPTION.
+
+	Returns
+	-------
+	pixels : numpy.ndarray
+		DESCRIPTION.
+
+	"""
+	if len(grid_shape) == 2:
+		pixels = np.zeros(grid_shape)
+	if len(grid_shape) == 3:
+		pixels = np.zeros((grid_shape[0], grid_shape[1]))
+	else:
+		raise ValueError('')
+
+	for i in range(len(tile)-1):
+		manh = int(int(np.abs(tile[i+1, 0]-tile[i, 0])
+					  +np.abs(tile[i+1, 1]-tile[i, 1]))*factor)
+
+		xsb = np.linspace(tile[i, 0], tile[i+1, 0], manh)
+		ysb = np.linspace(tile[i, 1], tile[i+1, 1], manh)
+		x_round = np.round(xsb).astype(int)
+		y_round = np.round(ysb).astype(int)
+		diff_x = x_round-xsb
+		diff_y = y_round-ysb
+		positions = np.array([y_round[(diff_x != 0.5)&(diff_y != 0.5)],
+							  x_round[(diff_x != 0.5)&(diff_y != 0.5)]]).T
+
+		condit = (diff_x == 0.5)&(diff_y != 0.5)
+		if len(condit[condit]) > 0:
+			kern = np.zeros((2, len(condit[condit]), 2), dtype=int)
+			x_sub, y_sub = xsb[condit], ysb[condit]
+			kern[0, :, 0] = y_sub
+			kern[1, :, 0] = y_sub
+			kern[0, :, 1] = x_sub
+			kern[1, :, 1] = x_sub-1
+			kern = np.concatenate(kern, axis=0)
+			positions = np.concatenate((positions, kern))
+
+		condit = (diff_x != 0.5)&(diff_y == 0.5)
+		if len(condit[condit]) > 0:
+			kern = np.zeros((2, len(condit[condit]), 2), dtype=int)
+			x_sub, y_sub = x_round[condit], y_round[condit]
+			kern[0, :, 1] = x_sub
+			kern[1, :, 1] = x_sub
+			kern[0, :, 0] = y_sub
+			kern[1, :, 0] = y_sub-1
+			kern = np.concatenate(kern, axis=0)
+			positions = np.concatenate((positions, kern))
+
+		condit = (diff_x == 0.5)&(diff_y == 0.5)
+		if len(condit[condit]) > 0:
+			kern = np.zeros((4, len(condit[condit]), 2), dtype=int)
+			x_sub, y_sub = xsb[condit], ysb[condit]
+			kern[0, :, 0] = y_sub
+			kern[0, :, 1] = x_sub
+			kern[1, :, 0] = y_sub
+			kern[1, :, 1] = x_sub-1
+			kern[2, :, 0] = y_sub-1
+			kern[2, :, 1] = x_sub
+			kern[3, :, 0] = y_sub-1
+			kern[3, :, 1] = x_sub-1
+			kern = np.concatenate(kern)
+			positions = np.concatenate((positions, kern))
+
+		pixels[positions[:, 0], positions[:, 1]] = 1
+
+	return pixels
+
+def interior_tile(carte, positions):
+	"""
+
+
+	Parameters
+	----------
+	Array : numpy.ndarray
+		A 2 dimensions array to explore.
+	StPos : TYPE
+		Starting position of the exploration: np.array([[xi, yi]]).
+
+	Returns
+	-------
+	RepreMap : TYPE
+		DESCRIPTION.
+
+	"""
+	shape = carte.shape
+	kernel = np.array([[[-1,  0]], [[ 0, -1]], [[ 0,  1]], [[ 1,  0]]])
+	q = 0
+	while len(positions) > 0:
+		carte[positions[:, 0], positions[:, 1]] = True
+		positions = positions+kernel
+		positions = np.unique(np.concatenate(positions), axis=0)
+		positions = positions[carte[positions[:, 0],
+									positions[:, 1]] == False]
+		q += 1
+
+		if len(positions) > 0:
+			positions = positions[carte[positions[:, 0],
+										positions[:, 1]] == 0]
+			
+		if q > 1000:
+			print('infinit loop broken')
+			break
+
+	return carte
 
 def plot_tiling(n, tiles=None, coins=None, attaches=None, midpoints=None,
 				centers=None, figsize=(15, 15)):
@@ -346,3 +464,82 @@ def show_puzzle(tiles, image, figsize=(18, 18), lw=1, color='red',
 		plt.savefig(save_path, bbox_inches='tight', transparent=True)
 
 	plt.show()
+
+def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
+				  fond='dark'):
+	"""
+	
+
+	Parameters
+	----------
+	n : TYPE
+		DESCRIPTION.
+	tiles : TYPE
+		DESCRIPTION.
+	tiles_corner : TYPE
+		DESCRIPTION.
+	image : TYPE
+		DESCRIPTION.
+	method : TYPE
+		DESCRIPTION.
+	factor : TYPE, optional
+		DESCRIPTION. The default is 200.
+	freq : TYPE, optional
+		DESCRIPTION. The default is 2.
+	fond : TYPE, optional
+		DESCRIPTION. The default is 'dark'.
+
+	Raises
+	------
+	NotImplemented
+		DESCRIPTION.
+
+	Returns
+	-------
+	None.
+
+	"""
+	reverse_image = np.copy(image)[::-1]
+	coins_scaled = np.array(scale_tiles(n, tiles_corner, image))
+	tiles_center = np.round(np.mean(coins_scaled, axis=1), 0).astype(int)
+	if fond == 'dark':
+		vide = np.zeros(image.shape, dtype='uint8')
+	elif fond == 'white':
+		vide = np.zeros(image.shape, dtype='uint8')+255
+
+	if method == 'ordred':
+		for q in range(len(tiles)):
+			contour = contour_tile(tiles[q], img.shape, factor)
+			starter = np.array([[tiles_center[q, 1], tiles_center[q, 0]]])
+			pixels_tile = interior_tile(contour.astype(bool), starter)
+			vide[pixels_tile] = reverse_image[pixels_tile]
+			if (q%freq) == 0:
+				plt.figure(figsize=(12, 12))
+				plt.imshow(vide, origin='lower', interpolation='none')
+				plt.axis('off')
+				plt.show()
+
+	elif method == 'random':
+		q = 0
+		order = np.arange(len(tiles))
+		np.random.shuffle(order)
+		for i in order:
+			contour = contour_tile(tiles[i], image.shape, factor)
+			starter = np.array([[tiles_center[i, 1], tiles_center[i, 0]]])
+			pixels_tile = interior_tile(contour.astype(bool), starter)
+			vide[pixels_tile] = reverse_image[pixels_tile]
+			q += 1
+			if (q%freq) == 0:
+				plt.figure(figsize=(12, 12))
+				plt.imshow(vide, origin='lower', interpolation='none')
+				plt.axis('off')
+				plt.show()
+
+	else:
+		raise NotImplemented('Solving method ask is not implemented.')
+
+	if (q%freq) != 0:
+		plt.figure(figsize=(12, 12))
+		plt.imshow(vide, origin='lower', interpolation='none')
+		plt.axis('off')
+		plt.show() 
