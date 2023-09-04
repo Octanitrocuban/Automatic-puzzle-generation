@@ -1,4 +1,5 @@
 # Automatic-puzzle-generation
+
 Code to automatically create a random mosaic to form puzzles.
 
 Follow the following steps to create your own puzzles:
