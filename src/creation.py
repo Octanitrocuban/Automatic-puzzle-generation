@@ -233,21 +233,28 @@ def scale_tiles(n, tiles, image):
 
 def contour_tile(tile, grid_shape, factor):
 	"""
-	
+	Function to found which pixels are cut by the bound of the tile.
 
 	Parameters
 	----------
 	tile : numpy.ndarray
-		DESCRIPTION.
+		Positions of the dots defining the lines delimiting the tile.
 	grid_shape : tuple
-		DESCRIPTION.
+		Size of the picture (in number of pixel).
 	factor : float
-		DESCRIPTION.
+		Factor to increase or decrease the number of dots creating during the
+		interpolation part.
 
 	Returns
 	-------
 	pixels : numpy.ndarray
-		DESCRIPTION.
+		2 dimensional array filled with 0 and 1. The 1 indicates witch pixel
+		are being part of the input tile.
+
+	Note
+	----
+	This method doesn't relly on equation, because it actually make an
+	approximation of the cuts.
 
 	"""
 	if len(grid_shape) == 2:
@@ -258,6 +265,7 @@ def contour_tile(tile, grid_shape, factor):
 		raise ValueError('')
 
 	for i in range(len(tile)-1):
+		# manhatan distance
 		manh = int(int(np.abs(tile[i+1, 0]-tile[i, 0])
 					  +np.abs(tile[i+1, 1]-tile[i, 1]))*factor)
 
@@ -313,39 +321,34 @@ def contour_tile(tile, grid_shape, factor):
 
 def interior_tile(carte, positions):
 	"""
-
+	Function to found witch pixels are being part of a tile.
 
 	Parameters
 	----------
 	Array : numpy.ndarray
 		A 2 dimensions array to explore.
-	StPos : TYPE
+	positions : numpy.ndarray
 		Starting position of the exploration: np.array([[xi, yi]]).
 
 	Returns
 	-------
-	RepreMap : TYPE
-		DESCRIPTION.
+	carte : numpy.ndarray
+		2 dimensionals array where 1 values indicate the pixels that are
+		beeing part of the tile.
 
 	"""
 	shape = carte.shape
 	kernel = np.array([[[-1,  0]], [[ 0, -1]], [[ 0,  1]], [[ 1,  0]]])
-	q = 0
 	while len(positions) > 0:
 		carte[positions[:, 0], positions[:, 1]] = True
 		positions = positions+kernel
 		positions = np.unique(np.concatenate(positions), axis=0)
 		positions = positions[carte[positions[:, 0],
 									positions[:, 1]] == False]
-		q += 1
 
 		if len(positions) > 0:
 			positions = positions[carte[positions[:, 0],
 										positions[:, 1]] == 0]
-			
-		if q > 1000:
-			print('infinit loop broken')
-			break
 
 	return carte
 
@@ -468,31 +471,34 @@ def show_puzzle(tiles, image, figsize=(18, 18), lw=1, color='red',
 def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
 				  fond='dark'):
 	"""
-	
+	Function to create images of the filling of the puzzle.
 
 	Parameters
 	----------
-	n : TYPE
-		DESCRIPTION.
-	tiles : TYPE
-		DESCRIPTION.
-	tiles_corner : TYPE
-		DESCRIPTION.
-	image : TYPE
-		DESCRIPTION.
-	method : TYPE
-		DESCRIPTION.
-	factor : TYPE, optional
-		DESCRIPTION. The default is 200.
-	freq : TYPE, optional
-		DESCRIPTION. The default is 2.
-	fond : TYPE, optional
-		DESCRIPTION. The default is 'dark'.
+	n : tuple
+		Number of tiles to generate (in height, in width).
+	tiles : list
+		List of the tiles of the puzzle.
+	tiles_corner : numpy.ndarray
+		Position of the corners of the tiles.
+	image : numpy.ndarray
+		Picture use for the puzzle creation.
+	method : str
+		Method to fill the puzzle.
+	factor : float, optional
+		Factor to increase or decrease the number of dots creating during the
+		interpolation part. The default is 200.
+	freq : int, optional
+		Frequency of the figure printing. Lower this factor will be (with
+		minimum = 1) higher figure print number there will be. The default
+		is 2.
+	fond : str, optional
+		Color of the background. The default is 'dark'.
 
 	Raises
 	------
 	NotImplemented
-		DESCRIPTION.
+		Asking a solving method that isn't implemented.
 
 	Returns
 	-------
