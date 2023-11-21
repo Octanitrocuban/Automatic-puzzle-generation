@@ -1,9 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Sat Sep  2 14:01:00 2023
 
-@author: Matthieu Nougaret
-"""
 import creation
 import matplotlib.pyplot as plt
 
