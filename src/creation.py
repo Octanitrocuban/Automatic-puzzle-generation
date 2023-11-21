@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Aug 29 22:06:18 2023
-
-@author: Matthieu Nougaret
+Module to create random puzzle from a given picture.
 """
 
 import numpy as np
