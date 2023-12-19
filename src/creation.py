@@ -316,7 +316,7 @@ def interior_tile(carte, positions):
 
 	Parameters
 	----------
-	Array : numpy.ndarray
+	carte : numpy.ndarray
 		A 2 dimensions array to explore.
 	positions : numpy.ndarray
 		Starting position of the exploration: np.array([[xi, yi]]).
@@ -333,13 +333,12 @@ def interior_tile(carte, positions):
 	while len(positions) > 0:
 		carte[positions[:, 0], positions[:, 1]] = True
 		positions = positions+kernel
-		positions = np.unique(np.concatenate(positions), axis=0)
+		shape = positions.shape
+		positions = np.reshape(positions, (shape[0]*shape[1], 2))
 		positions = positions[carte[positions[:, 0],
 									positions[:, 1]] == False]
 
-		if len(positions) > 0:
-			positions = positions[carte[positions[:, 0],
-										positions[:, 1]] == 0]
+		positions = np.unique(positions, axis=0)
 
 	return carte
 
@@ -506,7 +505,7 @@ def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
 
 	if method == 'ordred':
 		for q in range(len(tiles)):
-			contour = contour_tile(tiles[q], img.shape, factor)
+			contour = contour_tile(tiles[q], image.shape, factor)
 			starter = np.array([[tiles_center[q, 1], tiles_center[q, 0]]])
 			pixels_tile = interior_tile(contour.astype(bool), starter)
 			vide[pixels_tile] = reverse_image[pixels_tile]
