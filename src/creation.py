@@ -167,28 +167,20 @@ def minimize_tiles(tiles, plot=False):
 	for i, piece in enumerate(tiles):
 		vector = np.array([piece[1:, 1]-piece[:-1, 1],
 						   piece[1:, 0]-piece[:-1, 0]]).T
-		# initialisation
-		u = vector[0]
-		min_tile = []
-		min_tile.append(piece[0])
-		for j in range(len(vector)):
-			v = vector[j]
-			# scalar product
-			sc_prod = vector[j, 0]*u[0]+vector[j, 1]*u[1]
-			# vector normes
-			norm_u = (u[0]**2 + u[1]**2)**.5
-			norm_v = (v[0]**2 + v[1]**2)**.5
-			angles = np.arccos(sc_prod/(norm_u*norm_v))
-			if angles == 0:
-				u = u+v
-			else:
-				u = v
-				min_tile.append(piece[j])
 
-		# to keep the tiles in a closed path
-		min_tile.append(piece[-1])
-		min_tile = np.array(min_tile)
-		minimum.append(min_tile)
+		shp = vector.shape
+		u_id = np.arange(0, shp[0]-1)
+		v_id = np.arange(1, shp[0])
+		norms_u = (vector[u_id, 0]**2 +vector[u_id, 1]**2)**.5
+		norms_v = (vector[v_id, 0]**2 +vector[v_id, 1]**2)**.5
+		sc_prods = (vector[u_id, 0]*vector[v_id, 0]
+				   +vector[u_id, 1]*vector[v_id, 1])
+
+		angles = np.arccos(sc_prods/(norms_u*norms_v))
+		sub = piece[1:-1][angles != 0]
+		sub = np.append([piece[0]], sub, axis=0)
+		sub = np.append(sub, [piece[-1]], axis=0)
+		minimum.append(sub)
 
 		if plot:
 			plt.figure(figsize=(6, 6))
