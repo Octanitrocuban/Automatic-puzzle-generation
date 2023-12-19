@@ -62,12 +62,13 @@ def puzzle_net(n):
 	keys_cent_4 = np.arange(4*n[0]*n[1]).reshape((n[0]*n[1], 4))
 	conns = uniques[comptes > 1]
 	theta = np.deg2rad(np.arange(0, 360, 360/n_head))
+	reshape = midpoints.shape[0]*4
 	for i in range(len(conns)):
 		masque = np.sum(midpoints == conns[i], axis=2) == 2
 		bruit = np.random.uniform(0.17, 0.27)*(-1)**np.random.randint(0, 2)
 		bruit = round(bruit, 5)
-		temp_mids = np.concatenate(midpoints)
-		temp_conn = np.concatenate(conneteurs)
+		temp_mids = np.reshape(midpoints, (reshape, 2))
+		temp_conn = np.reshape(conneteurs, (reshape, n_head, 2))
 		rayon = round(np.random.uniform(0.08, 0.14), 3)
 		argw = np.copy(np.argwhere(masque))
 		if 1 in argw[:, 1]:
