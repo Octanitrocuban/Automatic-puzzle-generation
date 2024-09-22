@@ -4,6 +4,7 @@ Module to create random puzzle from a given picture.
 """
 
 import numpy as np
+from tqdm import tqdm
 import matplotlib.pyplot as plt
 
 def puzzle_net(n):
@@ -30,8 +31,8 @@ def puzzle_net(n):
 	midpoints : numpy.ndarray
 		Position of the midle distance between two corners.
 	conneteurs : numpy.ndarray
-		Plugs dots positions. Note that if their x and y value are 0, it means
-		that there are no plug (boarder of the puzzle).
+		Plugs dots positions. Note that if their x and y value are 0, it
+		means that there are no plug (boarder of the puzzle).
 
 	"""
 	n_head = 5
@@ -83,7 +84,9 @@ def puzzle_net(n):
 				y_att = np.sin(theta-np.pi*3/10)*rayon
 				x_att = (temp_mids[masque, 0]+x_att[:, np.newaxis])[:, 0]
 				y_att = (temp_mids[masque, 1]+y_att[:, np.newaxis])[:, 0]
-				temp_conn[where_rm[0]] = np.array([x_att[::-1], y_att[::-1]]).T
+				temp_conn[where_rm[0]] = np.array([x_att[::-1],
+												   y_att[::-1]]).T
+
 				temp_conn[where_rm[1]] = np.array([x_att, y_att]).T
 
 			else:
@@ -93,7 +96,8 @@ def puzzle_net(n):
 				x_att = (temp_mids[masque, 0]+x_att[:, np.newaxis])[:, 0]
 				y_att = (temp_mids[masque, 1]+y_att[:, np.newaxis])[:, 0]
 				temp_conn[where_rm[0]] = np.array([x_att, y_att]).T
-				temp_conn[where_rm[1]] = np.array([x_att[::-1], y_att[::-1]]).T
+				temp_conn[where_rm[1]] = np.array([x_att[::-1],
+												   y_att[::-1]]).T
 
 		else:
 			masque = np.ravel(masque)
@@ -107,7 +111,9 @@ def puzzle_net(n):
 				y_att = np.sin(theta+np.pi*12/10)*rayon
 				x_att = (temp_mids[masque, 0]+x_att[:, np.newaxis])[:, 0]
 				y_att = (temp_mids[masque, 1]+y_att[:, np.newaxis])[:, 0]
-				temp_conn[where_rm[0]] = np.array([x_att[::-1], y_att[::-1]]).T
+				temp_conn[where_rm[0]] = np.array([x_att[::-1],
+												   y_att[::-1]]).T
+
 				temp_conn[where_rm[1]] = np.array([x_att, y_att]).T
 
 			else:
@@ -117,7 +123,8 @@ def puzzle_net(n):
 				x_att = (temp_mids[masque, 0]+x_att[:, np.newaxis])[:, 0]
 				y_att = (temp_mids[masque, 1]+y_att[:, np.newaxis])[:, 0]
 				temp_conn[where_rm[0]] = np.array([x_att, y_att]).T
-				temp_conn[where_rm[1]] = np.array([x_att[::-1], y_att[::-1]]).T
+				temp_conn[where_rm[1]] = np.array([x_att[::-1],
+												   y_att[::-1]]).T
 
 		# interpolation + smooth it (to do)
 		midpoints = np.reshape(temp_mids[np.newaxis], midpoints.shape)
@@ -177,6 +184,7 @@ def minimize_tiles(tiles, plot=False):
 				   +vector[u_id, 1]*vector[v_id, 1])
 
 		angles = np.arccos(sc_prods/(norms_u*norms_v))
+
 		sub = piece[1:-1][angles != 0]
 		sub = np.append([piece[0]], sub, axis=0)
 		sub = np.append(sub, [piece[-1]], axis=0)
@@ -184,12 +192,39 @@ def minimize_tiles(tiles, plot=False):
 
 		if plot:
 			plt.figure(figsize=(6, 6))
-			plt.plot(piece[:, 0], piece[:, 1], 'ko-')
-			plt.plot(min_tile[:, 0], min_tile[:, 1], 'r.-')
+			plt.plot(piece[:, 0], piece[:, 1], 'ko-', ms=8)
+			plt.plot(sub[:, 0], sub[:, 1], 'r.-')
 			plt.axis('equal')
 			plt.show()
 
 	return minimum
+
+def extract_mask_corner_in_tiles(tiles, corners):
+	"""
+	Function to compute which tile's dots are corners.
+
+	Parameters
+	----------
+	tiles : list
+		List of the tiles of the puzzle.
+	corners : numpy.ndarray
+		Position of the corners of the tiles.
+
+	Returns
+	-------
+	masques : list
+		list of numpy.ndarray. Boolean mask indicating which tile's dots are
+		corners.
+
+	"""
+	masques = []
+	for i, tile in enumerate(tiles):
+		masq = tile == corners[i, :, np.newaxis]
+		masq = masq[:, :, 0]&masq[:, :, 1]
+		masq =  masq[0]|masq[1]|masq[2]|masq[3]
+		masques.append(masq)
+
+	return masques
 
 def scale_tiles(n, tiles, image):
 	"""
@@ -250,65 +285,55 @@ def contour_tile(tile, grid_shape, factor):
 	"""
 	if len(grid_shape) == 2:
 		pixels = np.zeros(grid_shape)
-	if len(grid_shape) == 3:
+	elif len(grid_shape) == 3:
 		pixels = np.zeros((grid_shape[0], grid_shape[1]))
 	else:
 		raise ValueError('')
 
-	for i in range(len(tile)-1):
-		# manhatan distance
-		manh = int(int(np.abs(tile[i+1, 0]-tile[i, 0])
-					  +np.abs(tile[i+1, 1]-tile[i, 1]))*factor)
-
-		xsb = np.linspace(tile[i, 0], tile[i+1, 0], manh)
-		ysb = np.linspace(tile[i, 1], tile[i+1, 1], manh)
-		x_round = np.round(xsb).astype(int)
-		y_round = np.round(ysb).astype(int)
-		diff_x = x_round-xsb
-		diff_y = y_round-ysb
-		positions = np.array([y_round[(diff_x != 0.5)&(diff_y != 0.5)],
-							  x_round[(diff_x != 0.5)&(diff_y != 0.5)]]).T
-
-		condit = (diff_x == 0.5)&(diff_y != 0.5)
-		if len(condit[condit]) > 0:
-			kern = np.zeros((2, len(condit[condit]), 2), dtype=int)
-			x_sub, y_sub = xsb[condit], ysb[condit]
-			kern[0, :, 0] = y_sub
-			kern[1, :, 0] = y_sub
-			kern[0, :, 1] = x_sub
-			kern[1, :, 1] = x_sub-1
-			kern = np.concatenate(kern, axis=0)
-			positions = np.concatenate((positions, kern))
-
-		condit = (diff_x != 0.5)&(diff_y == 0.5)
-		if len(condit[condit]) > 0:
-			kern = np.zeros((2, len(condit[condit]), 2), dtype=int)
-			x_sub, y_sub = x_round[condit], y_round[condit]
-			kern[0, :, 1] = x_sub
-			kern[1, :, 1] = x_sub
-			kern[0, :, 0] = y_sub
-			kern[1, :, 0] = y_sub-1
-			kern = np.concatenate(kern, axis=0)
-			positions = np.concatenate((positions, kern))
-
-		condit = (diff_x == 0.5)&(diff_y == 0.5)
-		if len(condit[condit]) > 0:
-			kern = np.zeros((4, len(condit[condit]), 2), dtype=int)
-			x_sub, y_sub = xsb[condit], ysb[condit]
-			kern[0, :, 0] = y_sub
-			kern[0, :, 1] = x_sub
-			kern[1, :, 0] = y_sub
-			kern[1, :, 1] = x_sub-1
-			kern[2, :, 0] = y_sub-1
-			kern[2, :, 1] = x_sub
-			kern[3, :, 0] = y_sub-1
-			kern[3, :, 1] = x_sub-1
-			kern = np.concatenate(kern)
-			positions = np.concatenate((positions, kern))
-
-		pixels[positions[:, 0], positions[:, 1]] = 1
-
+	diff = tile[1:]-tile[:-1]
+	alpha = np.linspace(0, 1, factor)[:, np.newaxis]
+	interp_x = (tile[:-1, 0, np.newaxis]+(diff[:, 0]*alpha).T)
+	interp_y = (tile[:-1, 1, np.newaxis]+(diff[:, 1]*alpha).T)
+	interp_x = np.round(np.ravel(interp_x)).astype(int)
+	interp_y = np.round(np.ravel(interp_y)).astype(int)
+	
+	pixels[interp_y, interp_x] = 1
 	return pixels
+
+def contour_tile_M(tile, grid, factor):
+	"""
+	Function to found which pixels are cut by the bound of the tile.
+
+	Parameters
+	----------
+	tile : numpy.ndarray
+		Positions of the dots defining the lines delimiting the tile.
+	grid: numpy.ndarray
+		Grid on which the contour will be add.
+	factor : float
+		Factor to increase or decrease the number of dots creating during the
+		interpolation part.
+
+	Returns
+	-------
+	grid : numpy.ndarray
+		2 dimensional array filled with 0 and 1. The 1 indicates witch pixel
+		are being part of the input tile.
+
+	Note
+	----
+	This method doesn't relly on equation, because it actually make an
+	approximation of the cuts.
+
+	"""
+	diff = tile[1:]-tile[:-1]
+	alpha = np.linspace(0, 1, factor)[:, np.newaxis]
+	interp_x = (tile[:-1, 0, np.newaxis]+(diff[:, 0]*alpha).T)
+	interp_y = (tile[:-1, 1, np.newaxis]+(diff[:, 1]*alpha).T)
+	interp_x = np.round(np.ravel(interp_x)).astype(int)
+	interp_y = np.round(np.ravel(interp_y)).astype(int)
+	grid[interp_y, interp_x] = 1
+	return grid
 
 def interior_tile(carte, positions):
 	"""
@@ -461,7 +486,9 @@ def show_puzzle(tiles, image, figsize=(18, 18), lw=1, color='red',
 def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
 				  fond='dark'):
 	"""
-	Function to create images of the filling of the puzzle.
+	Function to create images of the filling of the puzzle. This function will
+	be way slower than animated_fill_multi. animated_fill_multi is design for
+	a batch of pieces at time filling.
 
 	Parameters
 	----------
@@ -488,7 +515,9 @@ def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
 	Raises
 	------
 	NotImplemented
-		Asking a solving method that isn't implemented.
+		Asking a background color which isn't implemented.
+	NotImplemented
+		Asking a solving method which isn't implemented.
 
 	Returns
 	-------
@@ -496,46 +525,235 @@ def animated_fill(n, tiles, tiles_corner, image, method, factor=200, freq=2,
 
 	"""
 	reverse_image = np.copy(image)[::-1]
-	coins_scaled = np.array(scale_tiles(n, tiles_corner, image))
-	tiles_center = np.round(np.mean(coins_scaled, axis=1), 0).astype(int)
+	masques = extract_mask_corner_in_tiles(tiles, tiles_corner)
+	kernel = np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]])*4
+	tiles_center = np.round(np.mean(tiles_corner, axis=1), 0).astype(int)
 	if fond == 'dark':
 		vide = np.zeros(image.shape, dtype='uint8')
 	elif fond == 'white':
 		vide = np.zeros(image.shape, dtype='uint8')+255
-
-	if method == 'ordred':
-		for q in range(len(tiles)):
-			contour = contour_tile(tiles[q], image.shape, factor)
-			starter = np.array([[tiles_center[q, 1], tiles_center[q, 0]]])
-			pixels_tile = interior_tile(contour.astype(bool), starter)
-			vide[pixels_tile] = reverse_image[pixels_tile]
-			if (q%freq) == 0:
-				plt.figure(figsize=(12, 12))
-				plt.imshow(vide, origin='lower', interpolation='none')
-				plt.axis('off')
-				plt.show()
-
-	elif method == 'random':
-		q = 0
-		order = np.arange(len(tiles))
-		np.random.shuffle(order)
-		for i in order:
-			contour = contour_tile(tiles[i], image.shape, factor)
-			starter = np.array([[tiles_center[i, 1], tiles_center[i, 0]]])
-			pixels_tile = interior_tile(contour.astype(bool), starter)
-			vide[pixels_tile] = reverse_image[pixels_tile]
-			q += 1
-			if (q%freq) == 0:
-				plt.figure(figsize=(12, 12))
-				plt.imshow(vide, origin='lower', interpolation='none')
-				plt.axis('off')
-				plt.show()
-
 	else:
-		raise NotImplemented('Solving method ask is not implemented.')
+		raise NotImplemented("Asked background color isn't implemented.")
+
+	q = 0
+	order = np.arange(len(tiles))
+	img_shape = image.shape
+	if method == 'random':
+		np.random.shuffle(order)
+	elif method == 'sorted':
+		pass
+	else:
+		raise NotImplemented("Asked filling method isn't implemented.")
+
+	for i in tqdm(order):
+		contour = contour_tile(tiles[i], img_shape, factor)
+		st_corns = (tiles[i][masques[i]]).astype(int)[:-1]+kernel
+		st_corns = st_corns[:, ::-1]
+		l_ran_h = np.arange(st_corns[0][0], st_corns[1][0]+1, 1)
+		lh = len(l_ran_h)
+		l_ran_v = np.arange(st_corns[0][1], st_corns[2][1]+1, 1)
+		lv = len(l_ran_v)
+		l_zer_h = np.zeros(lh, dtype=int)
+		l_zer_v = np.zeros(lv, dtype=int)
+		L1 = contour[l_ran_h, l_zer_h+st_corns[0][1]]
+		L2 = contour[l_zer_v+st_corns[1][0], l_ran_v]
+		L3 = contour[l_ran_h, l_zer_h+st_corns[3][1]]
+		L4 = contour[l_zer_v+st_corns[0][0], l_ran_v]
+		starter = np.zeros((1+lh*2+lv*2, 2), dtype=int)
+		starter[0] = tiles_center[i, 1], tiles_center[i, 0]
+		if 1 not in L3:
+			starter[1:lh+1, 0] = l_ran_h
+			starter[1:lh+1, 1] = st_corns[3][1]
+		else:
+			mask = np.where(L3 == 1)[0]
+			starter[1] = st_corns[3]
+			starter[2] = st_corns[2]
+			starter[3] = l_ran_h[mask[0]-1], st_corns[3][1]
+			starter[4] = l_ran_h[mask[-1]+1], st_corns[2][1]
+
+		if 1 not in L2:
+			starter[lh+1:lh+lv+1, 0] = st_corns[1][0]
+			starter[lh+1:lh+lv+1, 1] = l_ran_v
+		else:
+			mask = np.where(L2 == 1)[0]
+			starter[lh+1] = st_corns[1]
+			starter[lh+2] = st_corns[2]
+			starter[lh+3] = st_corns[1][0], l_ran_v[mask[0]-1]
+			starter[lh+4] = st_corns[2][0], l_ran_v[mask[-1]+1]
+
+		if 1 not in L1:
+			starter[lh+lv+1:lh+lh+lv+1, 0] = l_ran_h
+			starter[lh+lv+1:lh+lh+lv+1, 1] = st_corns[0][1]
+		else:
+			mask = np.where(L1 == 1)[0]
+			starter[lh+lv+1] = st_corns[0]
+			starter[lh+lv+2] = st_corns[1]
+			starter[lh+lv+3] = l_ran_h[mask[0]-1], st_corns[0][1]
+			starter[lh+lv+4] = l_ran_h[mask[-1]+1], st_corns[1][1]
+
+		if 1 not in L4:
+			starter[lh+lh+lv+1:, 0] = l_zer_v+st_corns[0][0]
+			starter[lh+lh+lv+1:, 1] = l_ran_v
+		else:
+			mask = np.where(L4 == 1)[0]
+			starter[lh+lh+lv+1] = st_corns[0]
+			starter[lh+lh+lv+2] = st_corns[3]
+			starter[lh+lh+lv+3] = st_corns[0][0], l_ran_v[mask[0]-1]
+			starter[lh+lh+lv+3] = st_corns[3][0], l_ran_v[mask[-1]+1]
+
+		starter = starter[(starter[:, 0] > 0)&(starter[:, 1] > 0)]
+		pixels_tile = interior_tile(contour.astype(bool), starter)
+		vide[pixels_tile] = reverse_image[pixels_tile]
+		q += 1
+		if (q%freq) == 0:
+			plt.figure(figsize=(12, 12))
+			plt.imshow(vide, origin='lower', interpolation='none')
+			plt.axis('off')
+			plt.show()
 
 	if (q%freq) != 0:
 		plt.figure(figsize=(12, 12))
 		plt.imshow(vide, origin='lower', interpolation='none')
 		plt.axis('off')
-		plt.show() 
+		plt.show()
+
+def animated_fill_multi(n, tiles, tiles_corner, image, method, factor=200,
+						freq=2, fond='dark'):
+	"""
+	Function to create images of the filling of the puzzle. This function will
+	be way faster than animated_fill. animated_fill is design for a piec by
+	piece filling.
+
+	Parameters
+	----------
+	n : tuple
+		Number of tiles to generate (in height, in width).
+	tiles : list
+		List of the tiles of the puzzle.
+	tiles_corner : numpy.ndarray
+		Position of the corners of the tiles.
+	image : numpy.ndarray
+		Picture use for the puzzle creation.
+	method : str
+		Method to fill the puzzle.
+	factor : float, optional
+		Factor to increase or decrease the number of dots creating during the
+		interpolation part. The default is 200.
+	freq : int, optional
+		Frequency of the figure printing. Lower this factor will be (with
+		minimum = 1) higher figure print number there will be. The default
+		is 2.
+	fond : str, optional
+		Color of the background. The default is 'dark'.
+
+	Raises
+	------
+	NotImplemented
+		Asking a background color which isn't implemented.
+	NotImplemented
+		Asking a solving method which isn't implemented.
+
+	Returns
+	-------
+	None.
+
+	"""
+	reverse_image = np.copy(image)[::-1]
+	masques = extract_mask_corner_in_tiles(tiles, tiles_corner)
+	kernel = np.array([[1, 1], [1, -1], [-1, -1], [-1, 1]])*4
+	tiles_center = np.round(np.mean(tiles_corner, axis=1), 0).astype(int)
+	mask_img = np.zeros((image.shape[0], image.shape[1]))
+	if fond == 'dark':
+		vide = np.zeros(image.shape, dtype='uint8')
+	elif fond == 'white':
+		vide = np.zeros(image.shape, dtype='uint8')+255
+	else:
+		raise NotImplemented("Asked background color isn't implemented.")
+
+	order = np.arange(len(tiles))
+	img_shape = image.shape
+	num_up = len(tiles)/freq
+	if num_up == int(num_up):
+		num_up = int(num_up)
+	else:
+		num_up = int(num_up)+1
+
+	n_freq = min([freq, len(tiles)])
+	if method == 'random':
+		np.random.shuffle(order)
+	elif method == 'sorted':
+		pass
+	else:
+		raise NotImplemented("Asked filling method isn't implemented.")
+
+	for i in tqdm(range(num_up)):
+		to_fill_id = order[i*n_freq:(i+1)*n_freq]
+		conc_nds = np.zeros((1, 2), dtype=int)
+		count = 0
+		for j in to_fill_id:
+			mask_img = contour_tile_M(tiles[j], mask_img, factor)
+			st_corns = (tiles[j][masques[j]]).astype(int)[:-1]+kernel
+			st_corns = st_corns[:, ::-1]
+			l_ran_h = np.arange(st_corns[0][0], st_corns[1][0]+1, 1)
+			lh = len(l_ran_h)
+			l_ran_v = np.arange(st_corns[0][1], st_corns[2][1]+1, 1)
+			lv = len(l_ran_v)
+			l_zer_h = np.zeros(lh, dtype=int)
+			l_zer_v = np.zeros(lv, dtype=int)
+			L1 = mask_img[l_ran_h, l_zer_h+st_corns[0][1]]
+			L2 = mask_img[l_zer_v+st_corns[1][0], l_ran_v]
+			L3 = mask_img[l_ran_h, l_zer_h+st_corns[3][1]]
+			L4 = mask_img[l_zer_v+st_corns[0][0], l_ran_v]
+			starter = np.zeros((1+lh*2+lv*2, 2), dtype=int)
+			starter[0] = tiles_center[j, 1], tiles_center[j, 0]
+
+			if 1 not in L3:
+				starter[1:lh+1, 0] = l_ran_h
+				starter[1:lh+1, 1] = st_corns[3][1]
+			else:
+				mask = np.where(L3 == 1)[0]
+				starter[1] = st_corns[3]
+				starter[2] = st_corns[2]
+				starter[3] = l_ran_h[mask[0]-1], st_corns[3][1]
+				starter[4] = l_ran_h[mask[-1]+1], st_corns[2][1]
+
+			if 1 not in L2:
+				starter[lh+1:lh+lv+1, 0] = st_corns[1][0]
+				starter[lh+1:lh+lv+1, 1] = l_ran_v
+			else:
+				mask = np.where(L2 == 1)[0]
+				starter[lh+1] = st_corns[1]
+				starter[lh+2] = st_corns[2]
+				starter[lh+3] = st_corns[1][0], l_ran_v[mask[0]-1]
+				starter[lh+4] = st_corns[2][0], l_ran_v[mask[-1]+1]
+
+			if 1 not in L1:
+				starter[lh+lv+1:lh+lh+lv+1, 0] = l_ran_h
+				starter[lh+lv+1:lh+lh+lv+1, 1] = st_corns[0][1]
+			else:
+				mask = np.where(L1 == 1)[0]
+				starter[lh+lv+1] = st_corns[0]
+				starter[lh+lv+2] = st_corns[1]
+				starter[lh+lv+3] = l_ran_h[mask[0]-1], st_corns[0][1]
+				starter[lh+lv+4] = l_ran_h[mask[-1]+1], st_corns[1][1]
+
+			if 1 not in L4:
+				starter[lh+lh+lv+1:, 0] = l_zer_v+st_corns[0][0]
+				starter[lh+lh+lv+1:, 1] = l_ran_v
+			else:
+				mask = np.where(L4 == 1)[0]
+				starter[lh+lh+lv+1] = st_corns[0]
+				starter[lh+lh+lv+2] = st_corns[3]
+				starter[lh+lh+lv+3] = st_corns[0][0], l_ran_v[mask[0]-1]
+				starter[lh+lh+lv+3] = st_corns[3][0], l_ran_v[mask[-1]+1]
+
+			starter = starter[(starter[:, 0] > 0)&(starter[:, 1] > 0)]
+			conc_nds = np.concatenate((conc_nds, starter))
+
+		pixels_tile = interior_tile(mask_img.astype(bool), conc_nds[1:])
+		vide[pixels_tile] = reverse_image[pixels_tile]
+
+		plt.figure(figsize=(12, 12))
+		plt.imshow(vide, origin='lower', interpolation='none')
+		plt.axis('off')
+		plt.show()
